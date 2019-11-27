@@ -1,5 +1,5 @@
 declare module "rdf-ext" {
-    export function createStore(options?: any): RDFStore;
+    export function createDataset(options?: any): RDFStore;
 
     export function createGraph(triples: Triple[]):RDFGraph;
 
