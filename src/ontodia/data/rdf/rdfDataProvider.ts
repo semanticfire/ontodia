@@ -1,23 +1,24 @@
-// import { waitFor } from 'rdf-ext';
-import rdf from 'rdf-ext';
+//import rdf from 'rdf-ext';
+import { namedNode} from 'rdf-data-model'
+import { Term } from 'rdf-js'
 import { RDFCacheableStore, MatchStatement, prefixFactory, isLiteral, isNamedNode } from './rdfCacheableStore';
 import stringToStream = require('string-to-stream');
 import { DataProvider, FilterParams } from '../provider';
 import { RDFLoader } from './rdfLoader';
 import {
     LocalizedString, Dictionary, ClassModel, LinkType, ElementModel,
-    LinkModel, LinkCount, PropertyModel, Property,
+    LinkModel, LinkCount, PropertyModel, Property, ElementIri,LinkTypeIri ,ElementTypeIri
 } from '../model';
 import { RDFCompositeParser } from './rdfCompositeParser';
 import { Quad } from 'rdf-js';
 
-const RDF_TYPE = rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
-const RDF_PROPERTY = rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#Property');
-const RDFS_SUB_CLASS_OF = rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf');
-const RDFS_CLASS = rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Class');
-const RDFS_LABEL = rdf.namedNode('http://www.w3.org/2000/01/rdf-schema#Label');
-const OWL_CLASS = rdf.namedNode('http://www.w3.org/2002/07/owl#Class');
-const OWL_OBJECT_PROPERTY = rdf.namedNode('http://www.w3.org/2002/07/owl#ObjectProperty');
+const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+const RDF_PROPERTY = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#Property');
+const RDFS_SUB_CLASS_OF = namedNode('http://www.w3.org/2000/01/rdf-schema#subClassOf');
+const RDFS_CLASS = namedNode('http://www.w3.org/2000/01/rdf-schema#Class');
+const RDFS_LABEL = namedNode('http://www.w3.org/2000/01/rdf-schema#Label');
+const OWL_CLASS = namedNode('http://www.w3.org/2002/07/owl#Class');
+const OWL_OBJECT_PROPERTY = namedNode('http://www.w3.org/2002/07/owl#ObjectProperty');
 
 export class RDFDataProvider implements DataProvider {
     public dataFetching: boolean;
@@ -35,7 +36,7 @@ export class RDFDataProvider implements DataProvider {
         proxy?: string;
         parsers: { [id: string]: any };
     }) {
-        const parser = new RdfCompositeParser(params.parsers);
+        const parser = new RDFCompositeParser(params.parsers);
 
         this.rdfStorage = new RDFCacheableStore();
         this.rdfLoader = new RDFLoader({
@@ -85,7 +86,7 @@ export class RDFDataProvider implements DataProvider {
             const subClasses: Quad[] =
                 this.rdfStorage.match(null, RDFS_SUB_CLASS_OF, null).toArray();
 
-            const classes = rdfClasses.map(cl => cl.subject.value)
+            const classes = < ElementTypeIri[]>rdfClasses.map(cl => cl.subject.value)
                 .concat(owlClasses.map(cl => cl.subject.value))
                 .concat(fromRDFTypes.map(cl => cl.object.value));
 
@@ -107,7 +108,7 @@ export class RDFDataProvider implements DataProvider {
             const labelQueries: Promise<boolean>[] = [];
 
             for (const cl of classes) {
-                const parents = parentMap[cl] || [];
+                const parents = <ElementTypeIri[]> parentMap[cl] || [];
                 const classAlreadyExists = dictionary[cl];
 
                 let classElement: ClassModel;
@@ -237,13 +238,13 @@ export class RDFDataProvider implements DataProvider {
         ).toArray();
 
         return Promise.resolve(rdfLinks.concat(owlLinks).map(link => ({
-            id: link.subject.value,
+            id: <LinkTypeIri>link.subject.value,
             label: { values: this.getLabels(link.subject.value) },
             count: this.rdfStorage.getTypeCount(link.subject.value),
         })));
     }
 
-    elementInfo(params: { elementIds: string[] }): Promise<Dictionary<ElementModel>> {
+    elementInfo(params: { elementIds: ElementIri[] }): Promise<Dictionary<ElementModel>> {
         const elementInfoResult: Dictionary<ElementModel> = {};
 
         const queries = params.elementIds.map(
@@ -282,10 +283,10 @@ export class RDFDataProvider implements DataProvider {
 
         return Promise.resolve(
             this.rdfStorage.matchAll(statements).toArray().map(lt => ({
-                sourceId: lt.subject.value,
-                linkTypeId: lt.predicate.value,
-                targetId: lt.object.value,
-            })),
+                sourceId: <ElementIri>lt.subject.value,
+                linkTypeId: <LinkTypeIri>lt.predicate.value,
+                targetId: <ElementIri>lt.object.value,
+            }))
         );
     }
 
@@ -296,7 +297,7 @@ export class RDFDataProvider implements DataProvider {
 
         const incomingElements = this.rdfStorage.match(null, null, element)
             .toArray().filter(t => isNamedNode(t.subject))
-            .map(triple => triple.predicate);
+            .map((triple: { predicate: any; }) => triple.predicate);
 
         for (const el of incomingElements) {
             if (!linkMap[el.value]) {
@@ -318,7 +319,7 @@ export class RDFDataProvider implements DataProvider {
         for (const el of outgoingElements) {
             if (!linkMap[el.value]) {
                 linkMap[el.value] = {
-                    id: el.value,
+                    id: <LinkTypeIri>el.value,
                     inCount: 0,
                     outCount: 1,
                 };
@@ -332,8 +333,8 @@ export class RDFDataProvider implements DataProvider {
     }
 
     linkElements(params: {
-        elementId: string;
-        linkId: string;
+        elementId: ElementIri;
+        linkId: LinkTypeIri;
         limit: number;
         offset: number;
         direction?: 'in' | 'out';
@@ -359,51 +360,51 @@ export class RDFDataProvider implements DataProvider {
             elements = this.rdfStorage.match(
                 undefined,
                 RDF_TYPE,
-                rdf.namedNode(params.elementTypeId),
+                namedNode(params.elementTypeId),
             ).toArray()
                 .filter((t, index) => paginate(t.subject, index))
-                .map(el => this.getElementInfo(el.subject.value, true));
+                .map(el => this.getElementInfo(<ElementIri>el.subject.value, true));
         } else if (params.refElementId && params.refElementLinkId) {
             const refEl = params.refElementId;
             const refLink = params.refElementLinkId;
             if (params.linkDirection === 'in') {
-                elements = this.rdfStorage.match(null, rdf.namedNode(refLink), rdf.namedNode(refEl))
+                elements = this.rdfStorage.match(null, namedNode(refLink), namedNode(refEl))
                     .toArray()
                     .filter((t, index) => paginate(t.subject, index))
-                    .map(el => this.getElementInfo(el.subject.value, true));
+                    .map(el => this.getElementInfo(<ElementIri>el.subject.value, true));
             } else {
-                elements = this.rdfStorage.match(rdf.namedNode(refEl), rdf.namedNode(refLink), null)
+                elements = this.rdfStorage.match(namedNode(refEl), namedNode(refLink), null)
                     .toArray()
                     .filter((t, index) => paginate(t.object, index))
-                    .map(el => this.getElementInfo(el.object.value, true));
+                    .map(el => this.getElementInfo(<ElementIri>el.object.value, true));
             }
         } else if (params.refElementId) {
             const refEl = params.refElementId;
 
             const refElement = this.getElementInfo(refEl, true);
-            const inRelations = this.rdfStorage.match(null, null, rdf.namedNode(refEl))
+            const inRelations = this.rdfStorage.match(null, null, namedNode(refEl))
                 .toArray().filter((t, index) => paginate(t.subject, index))
-                .map(el => this.getElementInfo(el.subject.value, true));
-            const outRelations = this.rdfStorage.match(rdf.namedNode(refEl), null, null)
+                .map(el => this.getElementInfo(<ElementIri>el.subject.value, true));
+            const outRelations = this.rdfStorage.match(namedNode(refEl), null, null)
                 .toArray()
                 .filter((t, index) => paginate(t.object, index))
-                .map(el => this.getElementInfo(el.object.value, true));
+                .map(el => this.getElementInfo(<ElementIri>el.object.value, true));
             elements = [refElement].concat(inRelations).concat(outRelations);
 
         } else if (params.text) {
             elements = [];
             this.rdfStorage.toArray().forEach((quad, index) => {
                 if (paginate(quad.object, index)) {
-                    elements.push(this.getElementInfo(quad.object.value, true));
+                    elements.push(this.getElementInfo(<ElementIri>quad.object.value, true));
                 } else if (paginate(quad.subject, index)) {
-                    elements.push(this.getElementInfo(quad.subject.value, true));
+                    elements.push(this.getElementInfo(<ElementIri>quad.subject.value, true));
                 }
             });
         } else {
             return Promise.resolve({});
         }
 
-        function paginate(node: Node, index: number) {
+        function paginate(node: Term, index: number) {
             return isNamedNode(node) &&
                 offsetIndex <= index &&
                 index < limitIndex;
@@ -450,7 +451,7 @@ export class RDFDataProvider implements DataProvider {
         }
     }
 
-    private getElementInfo(id: string, shortInfo?: boolean): ElementModel {
+    private getElementInfo(id: ElementIri, shortInfo?: boolean): ElementModel {
         return {
             id: id,
             types: this.getTypes(id),
@@ -487,7 +488,7 @@ export class RDFDataProvider implements DataProvider {
 
     private getProps(el: string): Dictionary<Property> {
         const props: Dictionary<Property> = {};
-        const propQuads = this.rdfStorage.match(rdf.namedNode(el), null, null).toArray();
+        const propQuads = this.rdfStorage.match(namedNode(el), null, null).toArray();
 
         for (const quad of propQuads) {
             if (isLiteral(quad.object) && !quad.predicate.equals(RDFS_LABEL)) {
@@ -503,9 +504,9 @@ export class RDFDataProvider implements DataProvider {
         return props;
     }
 
-    private getTypes(el: string): string[] {
-        return this.rdfStorage.match(
-            rdf.namedNode(el),
+    private getTypes(el: string): ElementTypeIri[] {
+        return <ElementTypeIri[]> this.rdfStorage.match(
+            namedNode(el),
             RDF_TYPE,
             undefined,
         ).toArray().map(t => t.object.value);

@@ -1,11 +1,11 @@
-import { RDFGraph } from 'rdf-ext';
+import { Dataset } from 'rdf-ext';
 import { Dictionary } from '../model';
 import { RDFCompositeParser } from './rdfCompositeParser';
 
 export const DEFAULT_PROXY = '/lod-proxy/';
 
 export class RDFLoader {
-    private fetchingFileCatche: Dictionary<Promise<RDFGraph>> = {};
+    private fetchingFileCatche: Dictionary<Promise<Dataset>> = {};
     public parser: RDFCompositeParser;
     public proxy: string;
 
@@ -17,19 +17,19 @@ export class RDFLoader {
         this.proxy = parameters.proxy || DEFAULT_PROXY;
     }
 
-    private parseData(data: string, contentType?: string, prefix?: string): Promise<RDFGraph> {
-        let result: Promise<RDFGraph>;
+    private parseData(data: string, contentType?: string, prefix?: string): Promise<Dataset> {
+        let result: Promise<Dataset>;
         result = this.parser.parse(data, contentType);
         return result;
     }
 
-    downloadElement(elementId: string): Promise<RDFGraph> {
+    downloadElement(elementId: string): Promise<Dataset> {
         const sharpIndex = elementId.indexOf('#');
         const fileUrl = sharpIndex !== -1 ? elementId.substr(0, sharpIndex) : elementId;
         let typePointer = 0;
         const mimeTypes = Object.keys(this.parser.parserMap);
 
-        const recursivePart = (): Promise<RDFGraph> => {
+        const recursivePart = (): Promise<Dataset> => {
             const acceptType = mimeTypes[typePointer++];
 
             if (acceptType && (elementId.startsWith('http') || elementId.startsWith('file'))) {

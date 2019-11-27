@@ -10,7 +10,7 @@ const N3Parser: any = require('rdf-parser-n3');
 const RdfXmlParser: any = require('rdf-parser-rdfxml');
 const JsonLdParser: any = require('rdf-parser-jsonld');
 
-const data = require<string>('./resources/testData.ttl');
+const data = require('./resources/testData.ttl');
 
 function onWorkspaceMounted(workspace: Workspace) {
     if (!workspace) { return; }
@@ -20,10 +20,10 @@ function onWorkspaceMounted(workspace: Workspace) {
             {
                 content: data,
                 type: 'text/turtle',
-                fileName: 'testData.ttl',
+                uri: 'file://testData.ttl',
             },
         ],
-        acceptBlankNodes: false,
+        //acceptBlankNodes: false,
         dataFetching: false,
         parsers: {
             'application/rdf+xml': new RdfXmlParser(),

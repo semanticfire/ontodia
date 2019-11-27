@@ -1,13 +1,14 @@
-// import { waitFor } from 'rdf-ext';
+import { Dataset , dataset } from 'rdf-ext';
 import { Quad, DefaultGraph, Literal, NamedNode, Stream, Term } from 'rdf-js';
-import rdf from 'rdf-ext';
+import { namedNode } from 'rdf-data-model'
+//import rdf from 'rdf-ext';
 import { Dictionary } from '../model';
 // import { RdfCompositeParser } from './rdfCompositeParser';
 import { uniqueId } from 'lodash';
 
 const DEFAULT_STORAGE_TYPE = 'text/turtle';
 const DEFAULT_STORAGE_URI = 'http://ontodia.org/defaultGraph';
-const RDF_TYPE = rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
 
 export function prefixFactory(prefix: string): ((id: string) => string) {
     const lastSymbol = prefix[prefix.length - 1];
@@ -67,10 +68,7 @@ export class RDFCacheableStore {
     private elementTypes: Dictionary<Quad[]> = {};
 
     constructor(quads?: Quad[]) {
-        this.base = rdf.dataset(quads);
-        this.base.add = (quad: Quad) => {
-            this.base._quads.push(quad);
-        };
+        this.base = dataset(quads);
     }
 
     import(dataStream: Stream<Quad>): Promise<any> {
@@ -150,14 +148,14 @@ export class RDFCacheableStore {
     }
 
     getLabels(id: string): Dataset {
-        return rdf.dataset(this.labelsMap[id]);
+        return dataset(this.labelsMap[id]);
     }
 
     // Checks whether the element is in the storage.
     isIncludes(id: string): boolean {
         return (
             this.labelsMap[id] !== undefined ||
-            this.base.match(rdf.namedNode(id), null, null).length > 0
+            this.base.match(namedNode(id), null, null,null).length > 0
         );
     }
 
@@ -209,19 +207,19 @@ export class RDFCacheableStore {
             if (!compositeDataset) {
                 compositeDataset = ds;
             } else {
-                compositeDataset = compositeDataset.merge(ds);
+                compositeDataset = compositeDataset.merge(ds.toArray());
             }
         }
         return compositeDataset;
     }
 
     private getTypes(id: string): Dataset {
-        return rdf.dataset(this.elementTypes[id]);
+        return dataset(this.elementTypes[id]);
     }
 
     private multipleMatch(statements: MatchStatement[]): Dataset {
         const foundQuads: Quad[] = [];
-        for (const quad of this.base._quads) {
+        for (const quad of this.base.toArray()) {
             for (const statement of statements) {
                 const {subject, predicate, object} = statement;
                 const similarObjects = !object || object.equals(quad.object);
@@ -233,6 +231,6 @@ export class RDFCacheableStore {
                 }
             }
         }
-        return rdf.dataset(foundQuads);
+        return dataset(foundQuads);
     }
 }

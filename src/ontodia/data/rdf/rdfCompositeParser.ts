@@ -1,4 +1,19 @@
+import { Stream,Quad, BaseQuad } from 'rdf-js'
+import { Parsers } from 'rdf-ext';
 import { Dictionary } from '../model';
+import stringToStream = require('string-to-stream');
+
+export enum ReaderState {
+    reading,
+    success,
+    fail,
+}
+
+export type StreamReader<Type> = {
+    mimeType: string,
+    stream: Stream<BaseQuad>,
+    state: ReaderState,
+};
 
 function workaroundForRDFXmlParser(body: string) {
     // For some strange reason we've encountered xml parser errors
@@ -26,7 +41,13 @@ function getMimeTypeByFileName(fileName: string): string {
 }
 
 export class RDFCompositeParser {
-    constructor(public parserMap: Dictionary<any>) { }
+    private parsers: Parsers;
+
+    constructor(public parserMap: Dictionary<any>) {
+        this.parsers = new Parsers(parserMap);
+    }
+
+   
 
     parse(body: string, mimeType?: string, fileName?: string): Promise<any> {
         if (mimeType) {
@@ -40,6 +61,13 @@ export class RDFCompositeParser {
         } else {
             return this.tryToGuessMimeType(body, fileName);
         }
+    }
+
+    import(dataStream: any, mimeType?: string): Stream<Quad> {
+        /*if (!mimeType || !this.parsers.find(mimeType)) {
+            return this.tryToGuess(dataStream);
+        }*/
+        return this.parsers.import(mimeType, dataStream);
     }
 
     private tryToGuessMimeType(body: string, fileName?: string): Promise<any> {
@@ -76,5 +104,93 @@ export class RDFCompositeParser {
             }
         };
         return recursion();
+    }
+
+    private tryToGuess(dataStream: any): void {
+        const readers: StreamReader<Quad>[] = this.parsers.list().map(
+            mimeType => ({
+                mimeType: mimeType,
+                state: ReaderState.reading,
+                stream: this.parsers.import(mimeType, dataStream),
+            }),
+        );
+        const results: {[id: string]: Quad[]} = {};
+
+        for (let reader of readers) {
+            results[reader.mimeType] = [];
+
+            reader.stream.once('end', () => {
+                reader.state = ReaderState.success;
+                if (isParsingCompleted()) {
+                    onParsingCompleted();
+                }
+            });
+
+            reader.stream.once('error', () => {
+                reader.state = ReaderState.fail;
+                if (isParsingCompleted()) {
+                    onParsingCompleted();
+                }
+            });
+
+            reader.stream.on('data', (quad) => {
+                results[reader.mimeType].push(quad);
+            });
+        }
+
+        let parseError: Error = null;
+        let endOfStream = false;
+        const onDataCallbacks: ((data?: Quad) => void)[] = [];
+        const onEndCallbacks: ((data?: Quad) => void)[] = [];
+        const onErrorCallbacks: ((data?: Error) => void)[] = [];
+
+        /*return {
+            on: on,
+            once: on,
+        };*/
+
+        function on(event: string, calback: (data?: any) => void) {
+            if (event === 'data') {
+                onDataCallbacks.push(calback);
+            } else if (event === 'end') {
+                onEndCallbacks.push(calback);
+                if (endOfStream) {
+                    calback(null);
+                }
+            } else if (event === 'error') {
+                onErrorCallbacks.push(calback);
+                if (parseError) {
+                    calback(parseError);
+                }
+            }
+        };
+
+        function onParsingCompleted() {
+            endOfStream = true;
+            const successReader = readers.find(reader => reader.state === ReaderState.success);
+            if (successReader) {
+                console.warn(`It's figured out that the file MIME type is ${successReader.mimeType}`);
+                ;
+                for (const quad of results[successReader.mimeType]) {
+                    for (const callback of onDataCallbacks) {
+                        callback(quad);
+                    }
+                }
+                for (const callback of onEndCallbacks) {
+                    callback(null);
+                }
+            } else {
+                parseError = Error('There is no parser for this MIME type');
+                for (const callback of onErrorCallbacks) {
+                    callback(parseError);
+                }
+            }
+        }
+
+        function isParsingCompleted() {
+            return readers.filter(
+                reader => reader.state === ReaderState.reading
+            ).length === 0;
+        }
     }
 }

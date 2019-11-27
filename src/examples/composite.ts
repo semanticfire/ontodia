@@ -20,7 +20,7 @@ import { onPageLoad, tryLoadLayoutFromLocalStorage, saveLayoutToLocalStorage } f
 import { LinkBinding } from '../ontodia/data/sparql/sparqlModels';
 import { getLinksInfo } from '../ontodia/data/sparql/responseHandler';
 
-const data = require<string>('./resources/testData.ttl');
+const data = require('./resources/testData.ttl');
 
 class TransformingDataProvider extends SparqlDataProvider {
 
