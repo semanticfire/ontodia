@@ -2,7 +2,7 @@
 /// <reference path='local/file-saverjs/index.d.ts' />
 /// <reference path="local/n3/index.d.ts" />
 /// <reference path="local/rdf-ext/index.d.ts" />
-/// <reference path="local/rdf-dataset-indexed/index.d.ts" />
+/// <reference path="local/@rdfjs__dataset/index.d.ts" />
 
 // placeholders for webcola
 declare module 'd3-dispatch';
