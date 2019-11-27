@@ -1,14 +1,13 @@
-//import { waitFor } from 'rdf-ext';
+// import { waitFor } from 'rdf-ext';
 import { Quad, DefaultGraph, Literal, NamedNode, Stream, Term } from 'rdf-js';
-import { namedNode} from 'rdf-data-model'
-import Dataset = require('rdf-dataset-indexed');
+import rdf from 'rdf-ext';
 import { Dictionary } from '../model';
-//import { RdfCompositeParser } from './rdfCompositeParser';
+// import { RdfCompositeParser } from './rdfCompositeParser';
 import { uniqueId } from 'lodash';
 
 const DEFAULT_STORAGE_TYPE = 'text/turtle';
 const DEFAULT_STORAGE_URI = 'http://ontodia.org/defaultGraph';
-const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
+const RDF_TYPE = rdf.namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
 
 export function prefixFactory(prefix: string): ((id: string) => string) {
     const lastSymbol = prefix[prefix.length - 1];
@@ -36,12 +35,12 @@ export function isLabelType(predicateIri: string): boolean {
     return isLabelIri || looksLikeLabel;
 }
 
-export type MatchStatement = {
-    subject?: Term,
-    predicate?: Term,
-    object?: Term,
-    graph?: DefaultGraph,
-};
+export interface MatchStatement {
+    subject?: Term;
+    predicate?: Term;
+    object?: Term;
+    graph?: DefaultGraph;
+}
 
 export const LABEL_URIS = [
     'http://www.w3.org/2004/02/skos/core#prefLabel',
@@ -68,7 +67,7 @@ export class RDFCacheableStore {
     private elementTypes: Dictionary<Quad[]> = {};
 
     constructor(quads?: Quad[]) {
-        this.base = new Dataset(quads);
+        this.base = rdf.dataset(quads);
         this.base.add = (quad: Quad) => {
             this.base._quads.push(quad);
         };
@@ -79,7 +78,7 @@ export class RDFCacheableStore {
         return this.base.import(dataStream);
     }
 
-    get length () {
+    get length() {
         return this.base.length;
     }
 
@@ -151,14 +150,14 @@ export class RDFCacheableStore {
     }
 
     getLabels(id: string): Dataset {
-        return new Dataset(this.labelsMap[id]);
+        return rdf.dataset(this.labelsMap[id]);
     }
 
     // Checks whether the element is in the storage.
     isIncludes(id: string): boolean {
         return (
             this.labelsMap[id] !== undefined ||
-            this.base.match(namedNode(id), null, null).length > 0
+            this.base.match(rdf.namedNode(id), null, null).length > 0
         );
     }
 
@@ -217,7 +216,7 @@ export class RDFCacheableStore {
     }
 
     private getTypes(id: string): Dataset {
-        return new Dataset(this.elementTypes[id]);
+        return rdf.dataset(this.elementTypes[id]);
     }
 
     private multipleMatch(statements: MatchStatement[]): Dataset {
@@ -234,6 +233,6 @@ export class RDFCacheableStore {
                 }
             }
         }
-        return new Dataset(foundQuads);
+        return rdf.dataset(foundQuads);
     }
 }
