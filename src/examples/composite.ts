@@ -12,9 +12,10 @@ import {
     LinkModel,
  } from '../index';
 
-const N3Parser: any = require('rdf-parser-n3');
-const RdfXmlParser: any = require('rdf-parser-rdfxml');
-const JsonLdParser: any = require('rdf-parser-jsonld');
+const N3Parser: any = require('@rdfjs/parser-n3');
+import {RdfXmlParser} from "rdfxml-streaming-parser";
+const JsonLdParser: any = require('@rdfjs/parser-jsonld');
+ 
 
 import { onPageLoad, tryLoadLayoutFromLocalStorage, saveLayoutToLocalStorage } from './common';
 import { LinkBinding } from '../ontodia/data/sparql/sparqlModels';

@@ -1,5 +1,5 @@
 //import rdf from 'rdf-ext';
-import { namedNode} from 'rdf-data-model'
+import { namedNode} from '@rdfjs/data-model'
 import { Term } from 'rdf-js'
 import { RDFCacheableStore, MatchStatement, prefixFactory, isLiteral, isNamedNode } from './rdfCacheableStore';
 import stringToStream = require('string-to-stream');
@@ -511,4 +511,5 @@ export class RDFDataProvider implements DataProvider {
             undefined,
         ).toArray().map(t => t.object.value);
     }
+
 }

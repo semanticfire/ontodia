@@ -1,15 +1,15 @@
 declare module "rdf-ext" {
     import { Quad,Stream,Term, DefaultGraph, BaseQuad } from "rdf-js";
    
-    export function createDataset(options?: any): RDFStore;
+    //export function createDataset(options?: any): RDFStore;
 
     export function dataset(quads: Quad[]): Dataset;
 
-    export function createGraph(triples: Triple[]):RDFGraph;
+    //export function createGraph(triples: Triple[]):RDFGraph;
 
-    export function createNamedNode(value: string): NamedNode;
+    //export function createNamedNode(value: string): NamedNode;
 
-    export function createLiteral(value: string, language?: string, datatype?: string): Literal;
+    //export function createLiteral(value: string, language?: string, datatype?: string): Literal;
 
     export class Parser {
         import(data: Stream<BaseQuad>): Stream<Quad>;
@@ -32,7 +32,7 @@ declare module "rdf-ext" {
         match: (subject: Term, predicate : Term, object: Term, graph: DefaultGraph) => Dataset;
     }
 
-    export class RDFStore {
+    /*export class RDFStore {
         graphs: {
             [id: string]: { _graph: Triple[] };
         };
@@ -65,7 +65,7 @@ declare module "rdf-ext" {
         subject: Node;
     }
 
-    export type Node = NamedNode | Literal | BlankNode;
+   export type Node = NamedNode | Literal | BlankNode;
 
     export class BlankNode {
         interfaceName: 'BlankNode';
@@ -81,5 +81,5 @@ declare module "rdf-ext" {
         interfaceName: 'Literal';
         language: string;
         nominalValue: string;
-    }
+    }*/
 }

@@ -1,6 +1,6 @@
 import { Dataset , dataset } from 'rdf-ext';
 import { Quad, DefaultGraph, Literal, NamedNode, Stream, Term } from 'rdf-js';
-import { namedNode } from 'rdf-data-model'
+import { namedNode } from '@rdfjs/data-model'
 //import rdf from 'rdf-ext';
 import { Dictionary } from '../model';
 // import { RdfCompositeParser } from './rdfCompositeParser';
