@@ -31,7 +31,7 @@ export function mergeClassTree(composite: CompositeResponse<ClassModel[]>[]): Cl
         for (const model of classes) {
             const childrenIds: string[] = childrenMap[model.id] || [];
             model.children.map(ch => ch.id).forEach(id => {
-                if (childrenIds.indexOf(id) === -1) {
+                if (childrenIds.includes(id)) {
                     childrenIds.push(id);
                 }
             });
@@ -310,7 +310,9 @@ export function mergeLabels(
 }
 
 export function mergeCounts(a?: number, b?: number): number | undefined {
-    if (a === undefined && b === undefined) { return undefined; }
+    if (typeof a === 'undefined' && typeof b === 'undefined') {
+        return undefined;
+    }
 
     return (a || 0) + (b || 0);
 }

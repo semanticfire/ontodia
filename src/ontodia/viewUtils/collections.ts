@@ -143,9 +143,8 @@ export class HashMap<K, V> implements ReadonlyHashMap<K, V> {
             items.splice(index, 1);
             this._size--;
             return true;
-        } else {
-            return false;
         }
+        return false;
     }
 
     clear(): void {

@@ -48,10 +48,10 @@ export interface BlankBinding extends ElementBinding {
 
 export function isBlankBinding(binding: ElementBinding | BlankBinding): binding is BlankBinding {
     const blank = binding as BlankBinding;
-    return blank.blankTrgProp !== undefined
-        || blank.blankTrg !== undefined
-        || blank.blankSrcProp !== undefined
-        || blank.blankSrc !== undefined;
+    return typeof blank.blankTrgProp !== 'undefined'
+        || typeof blank.blankTrg !== 'undefined'
+        || typeof blank.blankSrcProp !== 'undefined'
+        || typeof blank.blankSrc !== 'undefined';
 }
 
 export interface ElementBinding {

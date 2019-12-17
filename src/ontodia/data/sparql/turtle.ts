@@ -29,7 +29,6 @@ export function n3toRdfNode(entity: string): RdfNode {
             datatype: N3.Util.getLiteralType(entity),
             'xml:lang': N3.Util.getLiteralLanguage(entity),
         };
-    } else {
-        return {type: 'uri', value: entity};
     }
+    return {type: 'uri', value: entity};
 }

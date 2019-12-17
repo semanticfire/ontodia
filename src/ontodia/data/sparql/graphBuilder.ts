@@ -16,14 +16,15 @@ const GREED_STEP = 150;
 export class GraphBuilder {
     constructor(public dataProvider: DataProvider) {}
 
-    createGraph(graph: { elementIds: ElementIri[]; links: LinkModel[] }): Promise<{
+    async createGraph(graph: { elementIds: ElementIri[]; links: LinkModel[] }): Promise<{
         preloadedElements: Dictionary<ElementModel>;
         diagram: SerializedDiagram;
     }> {
-        return this.dataProvider.elementInfo({elementIds: graph.elementIds}).then(elementsInfo => ({
+        const elementsInfo = await this.dataProvider.elementInfo({ elementIds: graph.elementIds });
+        return ({
             preloadedElements: elementsInfo,
             diagram: makeLayout(graph.elementIds, graph.links),
-        }));
+        });
     }
 
     getGraphFromRDFGraph(graph: Triple[]): Promise<{
@@ -34,11 +35,12 @@ export class GraphBuilder {
         return this.createGraph({elementIds, links});
     }
 
-    getGraphFromTurtleGraph(graph: string): Promise<{
+    async getGraphFromTurtleGraph(graph: string): Promise<{
         preloadedElements: Dictionary<ElementModel>;
         diagram: SerializedDiagram;
     }> {
-        return parseTurtleText(graph).then(triples => this.getGraphFromRDFGraph(triples));
+        const triples = await parseTurtleText(graph);
+        return this.getGraphFromRDFGraph(triples);
     }
 }
 
@@ -88,7 +90,9 @@ export function makeLayout(
         const source = layoutElementsMap[link.sourceId];
         const target = layoutElementsMap[link.targetId];
 
-        if (!source || !target) { return; }
+        if (!source || !target) {
+            return;
+        }
 
         links.push({
             '@type': 'Link',

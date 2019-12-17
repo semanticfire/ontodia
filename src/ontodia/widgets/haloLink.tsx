@@ -10,7 +10,7 @@ import { DiagramView } from '../diagram/view';
 import { EditorController } from '../editor/editorController';
 import { AuthoringState, AuthoringKind } from '../editor/authoringState';
 
-import { EventObserver, Unsubscribe } from '../viewUtils/events';
+import { EventObserver } from '../viewUtils/events';
 import { Cancellation, Debouncer } from '../viewUtils/async';
 import { HtmlSpinner } from '../viewUtils/spinner';
 

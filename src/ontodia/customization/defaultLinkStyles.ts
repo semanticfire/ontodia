@@ -83,7 +83,6 @@ export const DefaultLinkTemplateBundle: LinkTemplateResolver = type => {
         return LINK_TYPE_OF;
     } else if (type === PLACEHOLDER_LINK_TYPE) {
         return {markerTarget: {fill: 'none'}};
-    } else {
-        return undefined;
     }
+    return undefined;
 };

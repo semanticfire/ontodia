@@ -402,9 +402,8 @@ export function getLocalizedString(label: RdfLiteral): LocalizedString | undefin
             lang: label['xml:lang'],
             datatype: label.datatype,
         };
-    } else {
-        return undefined;
     }
+    return undefined;
 }
 
 export function getInstCount(instcount: RdfLiteral): number | undefined {

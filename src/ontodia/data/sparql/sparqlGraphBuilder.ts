@@ -17,12 +17,12 @@ export class SparqlGraphBuilder {
         this.graphBuilder = new GraphBuilder(dataProvider);
     }
 
-    getGraphFromConstruct(constructQuery: string): Promise<{
+    async getGraphFromConstruct(constructQuery: string): Promise<{
         preloadedElements: Dictionary<ElementModel>;
         diagram: SerializedDiagram;
     }> {
         const query = DEFAULT_PREFIX + constructQuery;
-        return this.dataProvider.executeSparqlConstruct(query)
-            .then(graph => this.graphBuilder.getGraphFromRDFGraph(graph));
+        const graph = await this.dataProvider.executeSparqlConstruct(query);
+        return this.graphBuilder.getGraphFromRDFGraph(graph);
     }
 }

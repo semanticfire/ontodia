@@ -1,6 +1,6 @@
 import { DataProvider, LinkElementsParams, FilterParams } from '../provider';
 import {
-    Dictionary, ClassModel, LinkType, ElementModel, LinkModel, LinkCount, Property, PropertyModel, LocalizedString,
+    Dictionary, ClassModel, LinkType, ElementModel, LinkModel, LinkCount, PropertyModel,
     ElementIri, ElementTypeIri, LinkTypeIri, PropertyTypeIri,
 } from '../model';
 import {
@@ -25,7 +25,7 @@ export interface DPDefinition {
 
 function isDefinition(dp: DataProvider | DPDefinition): dp is DPDefinition {
     const definition = dp as Partial<DPDefinition>;
-    return definition.name !== undefined && definition.dataProvider !== undefined;
+    return typeof definition.name !== 'undefined' && typeof definition.dataProvider !== 'undefined';
 }
 
 export type MergeMode = 'fetchAll' | 'sequentialFetching';
@@ -44,12 +44,11 @@ export class CompositeDataProvider implements DataProvider {
         this.dataProviders = dataProviders.map(dp => {
             if (isDefinition(dp)) {
                 return dp;
-            } else {
-                return {
-                    name: 'dataProvider_' + dpCounter++,
-                    dataProvider: dp,
-                };
             }
+            return {
+                name: 'dataProvider_' + dpCounter++,
+                dataProvider: dp,
+            };
         });
 
         if (params && params.mergeMode) {
@@ -61,136 +60,136 @@ export class CompositeDataProvider implements DataProvider {
         return this.fetchSequentially('classTree', mergeClassTree, undefined);
     }
 
-    propertyInfo(params: { propertyIds: PropertyTypeIri[] }): Promise<Dictionary<PropertyModel>> {
+    async propertyInfo(params: { propertyIds: PropertyTypeIri[] }): Promise<Dictionary<PropertyModel>> {
         if (this.mergeMode === 'fetchAll') {
             return this.fetchSequentially('propertyInfo', mergePropertyInfo, params);
-        } else {
-            let propertyIds = params.propertyIds;
-            return this.queueProcessResults((previousResult: Dictionary<PropertyModel>, dp: DPDefinition) => {
-                propertyIds = propertyIds.filter(id => !previousResult || !previousResult[id]);
-                return propertyIds.length > 0 ? dp.dataProvider.propertyInfo({ propertyIds: propertyIds }) : undefined;
-            }).then(mergePropertyInfo);
         }
+        let propertyIds = params.propertyIds;
+        const result = await this.queueProcessResults((previousResult: Dictionary<PropertyModel>, dp: DPDefinition) => {
+            propertyIds = propertyIds.filter(id => !previousResult || !previousResult[id]);
+            return propertyIds.length > 0 ? dp.dataProvider.propertyInfo({ propertyIds: propertyIds }) : undefined;
+        });
+        return mergePropertyInfo(result);
     }
 
-    classInfo(params: { classIds: ElementTypeIri[] }): Promise<ClassModel[]> {
+    async classInfo(params: { classIds: ElementTypeIri[] }): Promise<ClassModel[]> {
         if (this.mergeMode === 'fetchAll') {
             return this.fetchSequentially('classInfo', mergeClassInfo, params);
-        } else {
-            let classIds = params.classIds;
-            return this.queueProcessResults((previousResult: ClassModel[], dp: DPDefinition) => {
-                classIds = classIds.filter(id => !previousResult || previousResult.map(cm => cm.id).indexOf(id) === -1);
-                return classIds.length > 0 ? dp.dataProvider.classInfo({ classIds: classIds }) : undefined;
-            }).then(mergeClassInfo);
         }
+        let classIds = params.classIds;
+        const result = await this.queueProcessResults((previousResult: ClassModel[], dp: DPDefinition) => {
+            classIds = classIds.filter(id => !previousResult || previousResult.map(cm => cm.id).includes(id));
+            return classIds.length > 0 ? dp.dataProvider.classInfo({ classIds: classIds }) : undefined;
+        });
+        return mergeClassInfo(result);
     }
 
-    linkTypesInfo(params: { linkTypeIds: LinkTypeIri[] }): Promise<LinkType[]> {
+    async linkTypesInfo(params: { linkTypeIds: LinkTypeIri[] }): Promise<LinkType[]> {
         if (this.mergeMode === 'fetchAll') {
             return this.fetchSequentially('linkTypesInfo', mergeLinkTypesInfo, params);
-        } else {
-            let linkTypeIds = params.linkTypeIds;
-            return this.queueProcessResults((previousResult: LinkType[], dp: DPDefinition) => {
-                linkTypeIds = linkTypeIds.filter(id =>
-                    !previousResult || previousResult.map(lt => lt.id).indexOf(id) === -1);
-                return linkTypeIds.length > 0 ? dp.dataProvider.linkTypesInfo({ linkTypeIds: linkTypeIds }) : undefined;
-            }).then(mergeLinkTypesInfo);
         }
+        let linkTypeIds = params.linkTypeIds;
+        const result = await this.queueProcessResults((previousResult: LinkType[], dp: DPDefinition) => {
+            linkTypeIds = linkTypeIds.filter(id => !previousResult || previousResult.map(lt => lt.id).includes(id));
+            return linkTypeIds.length > 0 ? dp.dataProvider.linkTypesInfo({ linkTypeIds: linkTypeIds }) : undefined;
+        });
+        return mergeLinkTypesInfo(result);
     }
 
     linkTypes(): Promise<LinkType[]> {
         return this.fetchSequentially('linkTypes', mergeLinkTypes, undefined);
     }
 
-    elementInfo(params: { elementIds: ElementIri[] }): Promise<Dictionary<ElementModel>> {
+    async elementInfo(params: { elementIds: ElementIri[] }): Promise<Dictionary<ElementModel>> {
         if (this.mergeMode === 'fetchAll') {
             return this.fetchSequentially('elementInfo', mergeElementInfo, params);
-        } else {
-            let elementIds = params.elementIds;
-            return this.queueProcessResults((previousResult: Dictionary<ElementModel>, dp: DPDefinition) => {
-                elementIds = elementIds.filter(id => !previousResult || !previousResult[id]);
-                return elementIds.length > 0 ? dp.dataProvider.elementInfo({ elementIds: elementIds }) : undefined;
-            }).then(mergeElementInfo);
         }
+        let elementIds = params.elementIds;
+        const result = await this.queueProcessResults((previousResult: Dictionary<ElementModel>, dp: DPDefinition) => {
+            elementIds = elementIds.filter(id => !previousResult || !previousResult[id]);
+            return elementIds.length > 0 ? dp.dataProvider.elementInfo({ elementIds: elementIds }) : undefined;
+        });
+        return mergeElementInfo(result);
     }
 
-    linksInfo(params: {
+    async linksInfo(params: {
         elementIds: ElementIri[];
         linkTypeIds: LinkTypeIri[];
     }): Promise<LinkModel[]> {
         if (this.mergeMode === 'fetchAll') {
             return this.fetchSequentially('linksInfo', mergeLinksInfo, params);
-        } else {
-            let elementIds = params.elementIds;
-            return this.queueProcessResults((previousResult: LinkModel[], dp: DPDefinition) => {
-                elementIds = elementIds.filter(id => {
-                    if (previousResult) {
-                        for (const linkModel of previousResult) {
-                            if (linkModel.sourceId === id) { return false; }
+        }
+        let elementIds = params.elementIds;
+        const result = await this.queueProcessResults((previousResult: LinkModel[], dp: DPDefinition) => {
+            elementIds = elementIds.filter(id => {
+                if (previousResult) {
+                    for (const linkModel of previousResult) {
+                        if (linkModel.sourceId === id) {
+                            return false;
                         }
                     }
-                    return true;
-                });
-                return elementIds.length > 0 ?
-                    dp.dataProvider.linksInfo({ elementIds: elementIds, linkTypeIds: params.linkTypeIds }) : undefined;
-            }).then(mergeLinksInfo);
-        }
+                }
+                return true;
+            });
+            return elementIds.length > 0 ?
+                dp.dataProvider.linksInfo({ elementIds: elementIds, linkTypeIds: params.linkTypeIds }) : undefined;
+        });
+        return mergeLinksInfo(result);
     }
 
-    linkTypesOf(params: { elementId: ElementIri }): Promise<LinkCount[]> {
+    async linkTypesOf(params: { elementId: ElementIri }): Promise<LinkCount[]> {
         if (this.mergeMode === 'fetchAll') {
             return this.fetchSequentially('linkTypesOf', mergeLinkTypesOf, params);
-        } else {
-            return this.queueProcessResults((previousResult: LinkCount[], dp: DPDefinition) => {
-                if (!previousResult || previousResult && previousResult.length === 0) {
-                    return dp.dataProvider.linkTypesOf(params);
-                } else {
-                    return undefined;
-                }
-            }).then(mergeLinkTypesOf);
         }
+        const result = await this.queueProcessResults((previousResult: LinkCount[], dp: DPDefinition) => {
+            if (!previousResult || previousResult && previousResult.length === 0) {
+                return dp.dataProvider.linkTypesOf(params);
+            }
+            return undefined;
+        });
+        return mergeLinkTypesOf(result);
     }
 
-    linkElements(params: LinkElementsParams): Promise<Dictionary<ElementModel>> {
+    async linkElements(params: LinkElementsParams): Promise<Dictionary<ElementModel>> {
         if (this.mergeMode === 'fetchAll') {
             return this.fetchSequentially('linkElements', mergeLinkElements, params);
-        } else {
-            return this.queueProcessResults((previousResult: Dictionary<ElementModel>, dp: DPDefinition) => {
-                if (!previousResult || previousResult && Object.keys(previousResult).length === 0) {
-                    return dp.dataProvider.linkElements(params);
-                } else {
-                    return undefined;
-                }
-            }).then(mergeLinkElements);
         }
+        const result = await this.queueProcessResults(
+            (previousResult: Dictionary<ElementModel>, dp: DPDefinition) => {
+            if (!previousResult || previousResult && Object.keys(previousResult).length === 0) {
+                return dp.dataProvider.linkElements(params);
+            }
+            return undefined;
+        });
+        return mergeLinkElements(result);
     }
 
-    filter(params: FilterParams): Promise<Dictionary<ElementModel>> {
+    async filter(params: FilterParams): Promise<Dictionary<ElementModel>> {
         if (this.mergeMode === 'fetchAll') {
             return this.fetchSequentially('filter', mergeFilter, params);
-        } else {
-            return this.queueProcessResults((previousResult: Dictionary<ElementModel>, dp: DPDefinition) => {
-                if (!previousResult || previousResult && Object.keys(previousResult).length === 0) {
-                    return dp.dataProvider.filter(params);
-                } else {
-                    return undefined;
-                }
-            }).then(mergeFilter);
         }
+        const result = await this.queueProcessResults((previousResult: Dictionary<ElementModel>, dp: DPDefinition) => {
+            if (!previousResult || previousResult && Object.keys(previousResult).length === 0) {
+                return dp.dataProvider.filter(params);
+            }
+            return undefined;
+        });
+        return mergeFilter(result);
     }
 
-    private processResults<ResponseType>(
+    private async processResults<ResponseType>(
         responsePromise: Promise<ResponseType>,
         dpName: string,
         useProviderInStats?: boolean,
     ): Promise<CompositeResponse<ResponseType>> {
-        return responsePromise
-            .then(response => ({dataSourceName: dpName, useInStats: useProviderInStats, response: response}))
-            .catch(error => {
-                // tslint:disable-next-line:no-console
-                console.error(error);
-                return {dataSourceName: dpName, useInStats: useProviderInStats, response: undefined};
-            });
+        try {
+            const response = await responsePromise;
+            return ({ dataSourceName: dpName, useInStats: useProviderInStats, response: response });
+        } catch (error) {
+            // tslint:disable-next-line:no-console
+            console.error(error);
+            return { dataSourceName: dpName, useInStats: useProviderInStats, response: undefined };
+        }
     }
 
     private queueProcessResults<ResponseType>(
@@ -199,31 +198,31 @@ export class CompositeDataProvider implements DataProvider {
         let counter = 0;
         const responseList: CompositeResponse<ResponseType>[] = [];
 
-        const recursiveCall = (result?: ResponseType): Promise<CompositeResponse<ResponseType>[]> => {
+        const recursiveCall = async (result?: ResponseType): Promise<CompositeResponse<ResponseType>[]> => {
             if (this.dataProviders.length > counter) {
                 const dp = this.dataProviders[counter++];
                 const callBackResult = callBack(result, dp);
 
                 if (!callBackResult) { return Promise.resolve(responseList); }
-                return callBackResult.then(newResult => {
+                try {
+                    const newResult = await callBackResult;
                     responseList.push({
                         dataSourceName: dp.name,
                         response: newResult,
                     });
                     return recursiveCall(newResult);
-                }).catch(error => {
+                } catch (error) {
                     // tslint:disable-next-line:no-console
                     console.error(error);
                     return recursiveCall(result);
-                });
-            } else {
-                return Promise.resolve(responseList);
+                }
             }
+            return Promise.resolve(responseList);
         };
         return recursiveCall();
     }
 
-    private fetchSequentially<K extends keyof DataProvider>(
+    private async fetchSequentially<K extends keyof DataProvider>(
         functionName: K,
         mergeFunction: (response: CompositeResponse<OperationResult<K>>[]) => OperationResult<K>,
         params: OperationParams<K>,
@@ -233,14 +232,12 @@ export class CompositeDataProvider implements DataProvider {
                 (this: DataProvider, params: OperationParams<K>) => Promise<OperationResult<K>>;
             return this.processResults(providerMethod.call(dp.dataProvider, params), dp.name, dp.useInStats);
         });
-        return Promise.all(resultPromises).then(mergeFunction);
+        const response = await Promise.all(resultPromises);
+        return mergeFunction(response);
     }
 }
 
-type OperationParams<K> = any;
-type OperationResult<K> = any;
-// TODO: replace on compiler update
-// type OperationParams<K extends keyof DataProvider> =
-//     DataProvider[K] extends (params: infer P) => any ? P : never;
-// type OperationResult<K extends keyof DataProvider> =
-//     ReturnType<DataProvider[K]> extends Promise<infer R> ? R : never;
+type OperationParams<K extends keyof DataProvider> =
+    DataProvider[K] extends (params: infer P) => any ? P : never;
+type OperationResult<K extends keyof DataProvider> =
+    ReturnType<DataProvider[K]> extends Promise<infer R> ? R : never;

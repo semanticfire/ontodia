@@ -1,7 +1,8 @@
 import { hashFnv32a } from '../data/utils';
 import { RdfIri } from './sparql/sparqlModels';
 
-export interface Dictionary<T> { [key: string]: T; }
+export interface Dictionary<T> { [key: string]: T;
+}
 
 export interface LocalizedString {
     text: string;
@@ -104,15 +105,21 @@ export function sameElement(left: ElementModel, right: ElementModel): boolean {
 }
 
 function isArraysEqual(left: string[], right: string[]): boolean {
-    if (left.length !== right.length) { return false; }
+    if (left.length !== right.length) {
+        return false;
+    }
     for (let i = 0; i < left.length; i++) {
-        if (left[i] !== right[i]) { return false; }
+        if (left[i] !== right[i]) {
+            return false;
+        }
     }
     return true;
 }
 
 function isLocalizedStringsEqual(left: ReadonlyArray<LocalizedString>, right: ReadonlyArray<LocalizedString>): boolean {
-    if (left.length !== right.length) { return false; }
+    if (left.length !== right.length) {
+        return false;
+    }
     for (let i = 0; i < left.length; i++) {
         const leftValue = left[i];
         const rightValue = right[i];
@@ -124,8 +131,12 @@ function isLocalizedStringsEqual(left: ReadonlyArray<LocalizedString>, right: Re
 }
 
 function isIriPropertiesEqual(left: Property, right: Property): boolean {
-    if (!isIriProperty(left) || !isIriProperty(right)) { return false; }
-    if (left.values.length !== right.values.length) { return false; }
+    if (!isIriProperty(left) || !isIriProperty(right)) {
+        return false;
+    }
+    if (left.values.length !== right.values.length) {
+        return false;
+    }
     for (let i = 0; i < left.values.length; i++) {
         const leftValue = left.values[i];
         const rightValue = right.values[i];
@@ -137,17 +148,23 @@ function isIriPropertiesEqual(left: Property, right: Property): boolean {
 }
 
 function isLiteralPropertiesEqual(left: Property, right: Property): boolean {
-    if (!isLiteralProperty(left) || !isLiteralProperty(right)) { return false; }
+    if (!isLiteralProperty(left) || !isLiteralProperty(right)) {
+        return false;
+    }
     return isLocalizedStringsEqual(left.values, right.values);
 }
 
 function isPropertiesEqual(left: { [id: string]: Property }, right: { [id: string]: Property }) {
-    if (Object.keys(left).length !== Object.keys(right).length) { return false; }
+    if (Object.keys(left).length !== Object.keys(right).length) {
+        return false;
+    }
     for (const key in left.properties) {
         if (left.properties.hasOwnProperty(key)) {
             const leftProperty = left[key];
             const rightProperty = right[key];
-            if (!rightProperty) { return false; }
+            if (!rightProperty) {
+                return false;
+            }
             if (!isIriPropertiesEqual(leftProperty, rightProperty) &&
                 !isLiteralPropertiesEqual(leftProperty, rightProperty)) {
                 return false;

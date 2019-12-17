@@ -1,13 +1,8 @@
 import { Dataset , dataset } from 'rdf-ext';
 import { Quad, DefaultGraph, Literal, NamedNode, Stream, Term } from 'rdf-js';
-import { namedNode } from '@rdfjs/data-model'
-//import rdf from 'rdf-ext';
+import { namedNode } from '@rdfjs/data-model';
 import { Dictionary } from '../model';
-// import { RdfCompositeParser } from './rdfCompositeParser';
-import { uniqueId } from 'lodash';
 
-const DEFAULT_STORAGE_TYPE = 'text/turtle';
-const DEFAULT_STORAGE_URI = 'http://ontodia.org/defaultGraph';
 const RDF_TYPE = namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type');
 
 export function prefixFactory(prefix: string): ((id: string) => string) {
@@ -27,11 +22,11 @@ export function isNamedNode(el: Term): el is NamedNode {
 }
 
 export function isLabelType(predicateIri: string): boolean {
-    const isLabelIri = LABEL_URIS.indexOf(predicateIri) !== -1;
+    const isLabelIri = LABEL_URIS.includes(predicateIri);
     const type = predicateIri.toLocaleLowerCase();
-    const looksLikeLabel = Boolean(LABEL_POSTFIXES.find((value, index, array) => {
+    const looksLikeLabel = Boolean(LABEL_POSTFIXES.find((value) => {
         const postfix = value.toLocaleLowerCase();
-        return type.indexOf(postfix) !== -1;
+        return type.includes(postfix);
     }));
     return isLabelIri || looksLikeLabel;
 }
@@ -102,7 +97,7 @@ export class RDFCacheableStore {
         object?: Term,
         graph?: DefaultGraph,
     ): Dataset {
-        const isLabel = predicate && LABEL_URIS.indexOf(predicate.value) !== -1;
+        const isLabel = predicate && LABEL_URIS.includes(predicate.value);
         const isType = predicate && predicate.equals(RDF_TYPE);
         const valueNotFetched = subject && predicate && !object;
         if (valueNotFetched && (isLabel || isType)) {
@@ -127,7 +122,7 @@ export class RDFCacheableStore {
 
         statements.forEach(statement => {
             const {subject, predicate, object} = statement;
-            const isLabel = predicate && LABEL_URIS.indexOf(predicate.value) !== -1;
+            const isLabel = predicate && LABEL_URIS.includes(predicate.value);
             const isType = predicate && predicate.equals(RDF_TYPE);
             const valueNotFetched = subject && predicate && !object;
 
@@ -155,7 +150,7 @@ export class RDFCacheableStore {
     isIncludes(id: string): boolean {
         return (
             this.labelsMap[id] !== undefined ||
-            this.base.match(namedNode(id), null, null,null).length > 0
+            this.base.match(namedNode(id), null, null, null).length > 0
         );
     }
 
@@ -167,11 +162,11 @@ export class RDFCacheableStore {
         const subject = quad.subject.value;
         const predicate = quad.predicate.value;
         const object = quad.object.value;
-        const isLabel = LABEL_URIS.indexOf(predicate) !== -1;
+        const isLabel = LABEL_URIS.includes(predicate);
         const typeURI = predicate.toLocaleLowerCase();
         const hasLabelLikePostfix = LABEL_POSTFIXES.find((value, index, array) => {
             const postfix = value.toLocaleLowerCase();
-            return typeURI.indexOf(postfix) !== -1;
+            return typeURI.includes(postfix);
         });
         if (isLabel || (!this.labelsMap[subject] && hasLabelLikePostfix)) {
             if (!this.labelsMap[subject]) {

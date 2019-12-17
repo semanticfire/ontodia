@@ -7,10 +7,10 @@ import { ExampleMetadataApi, ExampleValidationApi } from './resources/exampleMet
 import { onPageLoad, tryLoadLayoutFromLocalStorage, saveLayoutToLocalStorage } from './common';
 
 const N3Parser: any = require('@rdfjs/parser-n3');
-import {RdfXmlParser} from "rdfxml-streaming-parser";
+import { RdfXmlParser } from 'rdfxml-streaming-parser';
 const JsonLdParser: any = require('@rdfjs/parser-jsonld');
 
-const data = require('./resources/testData2.ttl');
+const data = require('./resources/testData.ttl');
 
 function onWorkspaceMounted(workspace: Workspace) {
     if (!workspace) { return; }
@@ -23,7 +23,7 @@ function onWorkspaceMounted(workspace: Workspace) {
                 uri: 'file://testData.ttl',
             },
         ],
-        //acceptBlankNodes: false,
+        // acceptBlankNodes: false,
         dataFetching: false,
         parsers: {
             'application/rdf+xml': new RdfXmlParser(),

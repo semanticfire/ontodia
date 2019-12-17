@@ -9,7 +9,7 @@ import { PaperWidgetProps } from '../diagram/paperArea';
 import { EditorController } from '../editor/editorController';
 import { AuthoringState, AuthoringKind } from '../editor/authoringState';
 
-import { AnyListener, Unsubscribe, EventObserver } from '../viewUtils/events';
+import { AnyListener, EventObserver } from '../viewUtils/events';
 import { Cancellation, Debouncer } from '../viewUtils/async';
 import { HtmlSpinner } from '../viewUtils/spinner';
 import { ElementIri } from '../..';

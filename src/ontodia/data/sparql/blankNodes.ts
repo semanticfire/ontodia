@@ -56,17 +56,16 @@ export class QueryExecutor {
         const execution = this.queryDictionary[query];
         if (execution) {
             return execution;
-        } else {
-            this.queryDictionary[query] = this.queryFunction(query).then(response => {
-                delete this.queryDictionary[query];
-                return response;
-            });
-            return this.queryDictionary[query];
         }
+        this.queryDictionary[query] = this.queryFunction(query).then(response => {
+            delete this.queryDictionary[query];
+            return response;
+        });
+        return this.queryDictionary[query];
     }
 }
 
-export function updateFilterResults(
+export async function updateFilterResults(
     result: SparqlResponse<ElementBinding | BlankBinding>,
     queryFunction: (query: string) => Promise<SparqlResponse<BlankBinding>>,
     settings: SparqlDataProviderSettings,
@@ -81,19 +80,14 @@ export function updateFilterResults(
             completeBindings.push(binding);
         }
     }
-    return processBlankBindings(
-        blankBindings,
-        (callBackQuery: string) => {
-            return queryFunction(callBackQuery);
-        },
-        settings,
-    ).then(processedBindings => {
-        result.results.bindings = completeBindings.concat(processedBindings);
-        return result;
-    });
+    const processedBindings = await processBlankBindings(blankBindings, (callBackQuery: string) => {
+        return queryFunction(callBackQuery);
+    }, settings);
+    result.results.bindings = completeBindings.concat(processedBindings);
+    return result;
 }
 
-export function processBlankBindings(
+export async function processBlankBindings(
     blankBindings: BlankBinding[],
     queryFunction: (query: string) => Promise<SparqlResponse<BlankBinding>>,
     settings: SparqlDataProviderSettings,
@@ -119,26 +113,23 @@ export function processBlankBindings(
 
     const queryExecutor = new QueryExecutor(queryFunction);
 
-    return loadRelatedBlankNodes(relatedBlankBindnings, queryExecutor, settings).then(loadedGroupsById => {
-        const idsMap = getEncodedIdDictionary(loadedGroupsById);
-        const groups = Object.keys(bindingGroupsById).map(key => bindingGroupsById[key]);
-
-        for (const group of groups) {
-            for (const blankBinding of group) {
-                if (!blankBinding.label) {
-                    blankBinding.label = createLabelForBlankBinding(blankBinding);
-                }
-                const encodedId4LoadedElement = idsMap[blankBinding.blankTrg.value];
-                if (encodedId4LoadedElement) {
-                    blankBinding.blankTrg.value = encodedId4LoadedElement;
-                }
+    const loadedGroupsById = await loadRelatedBlankNodes(relatedBlankBindnings, queryExecutor, settings);
+    const idsMap = getEncodedIdDictionary(loadedGroupsById);
+    const groups = Object.keys(bindingGroupsById).map(key => bindingGroupsById[key]);
+    for (const group of groups) {
+        for (const blankBinding of group) {
+            if (!blankBinding.label) {
+                blankBinding.label = createLabelForBlankBinding(blankBinding);
             }
-            const encodedId = encodeId(group);
-            updateGroupIds(group, encodedId);
+            const encodedId4LoadedElement = idsMap[blankBinding.blankTrg.value];
+            if (encodedId4LoadedElement) {
+                blankBinding.blankTrg.value = encodedId4LoadedElement;
+            }
         }
-
-        return blankBindings;
-    });
+        const encodedId = encodeId(group);
+        updateGroupIds(group, encodedId);
+    }
+    return blankBindings;
 }
 
 function getEncodedIdDictionary(blankBindingGroups: Dictionary<BlankBinding[]>): Dictionary<string> {
@@ -205,7 +196,7 @@ export function createLabelForBlankBinding(bn: BlankBinding): RdfLiteral {
     }
 }
 
-function loadRelatedBlankNodes(
+async function loadRelatedBlankNodes(
     blankChains: BlankBinding[][],
     queryExecutor: QueryExecutor,
     settings: SparqlDataProviderSettings,
@@ -228,60 +219,45 @@ function loadRelatedBlankNodes(
         chain: pair.chain,
     })));
 
-    return Promise.all(promises)
-        .then(results => {
-            const recursionPromises: Promise<boolean>[] = [];
-
-            const loadedBlankBindings: Dictionary<BlankBinding[]> = {};
-            for (const result of results) {
-                const bindings = result.response.results.bindings;
-                if (bindings.length > 0) {
-
-                    const relatedBlankBindings: BlankBinding[][] = [];
-
-                    for (const binding of bindings) {
-                        if (isRdfBlank(binding.blankTrg)) {
-                            relatedBlankBindings.push(result.chain.concat([binding]));
-                        }
-                    }
-
-                    recursionPromises.push(
-                        loadRelatedBlankNodes(relatedBlankBindings, queryExecutor, settings, (recursionDeep + 1))
-                            .then(loadedGroupsById => {
-                                const idsMap = getEncodedIdDictionary(loadedGroupsById);
-                                const mergedResults: Dictionary<BlankBinding[]> = {};
-
-                                for (const binding of bindings) {
-                                    binding.label = createLabelForBlankBinding(binding);
-
-                                    const encodedId = idsMap[binding.blankTrg.value];
-
-                                    if (encodedId) {
-                                        binding.blankTrg.value = encodedId;
-                                    }
-
-                                    if (!mergedResults[binding.inst.value]) {
-                                        mergedResults[binding.inst.value] = [];
-                                    }
-
-                                    mergedResults[binding.inst.value].push(binding);
-                                }
-
-                                Object.keys(mergedResults).forEach(key => {
-                                    const group = mergedResults[key];
-                                    const originalId = group[0].inst.value;
-                                    loadedBlankBindings[originalId] = group;
-                                });
-
-                                return true;
-                            }),
-                    );
+    const results = await Promise.all(promises);
+    const recursionPromises: Promise<boolean>[] = [];
+    const loadedBlankBindings: Dictionary<BlankBinding[]> = {};
+    for (const result of results) {
+        const bindings = result.response.results.bindings;
+        if (bindings.length > 0) {
+            const relatedBlankBindings: BlankBinding[][] = [];
+            for (const binding of bindings) {
+                if (isRdfBlank(binding.blankTrg)) {
+                    relatedBlankBindings.push(result.chain.concat([binding]));
                 }
             }
-            return Promise.all(recursionPromises).then(() => {
-                return loadedBlankBindings;
-            });
-        });
+            const p = loadRelatedBlankNodes(relatedBlankBindings, queryExecutor, settings, (recursionDeep + 1))
+                .then(loadedGroupsById => {
+                    const idsMap = getEncodedIdDictionary(loadedGroupsById);
+                    const mergedResults: Dictionary<BlankBinding[]> = {};
+                    for (const binding1 of bindings) {
+                        binding1.label = createLabelForBlankBinding(binding1);
+                        const encodedId = idsMap[binding1.blankTrg.value];
+                        if (encodedId) {
+                            binding1.blankTrg.value = encodedId;
+                        }
+                        if (!mergedResults[binding1.inst.value]) {
+                            mergedResults[binding1.inst.value] = [];
+                        }
+                        mergedResults[binding1.inst.value].push(binding1);
+                    }
+                    Object.keys(mergedResults).forEach(key => {
+                        const group = mergedResults[key];
+                        const originalId = group[0].inst.value;
+                        loadedBlankBindings[originalId] = group;
+                    });
+                    return true;
+                });
+            recursionPromises.push(p);
+        }
+    }
+    await Promise.all(recursionPromises);
+    return loadedBlankBindings;
 }
 
 function getQueryForChain(blankNodes: BlankBinding[], sparqlDataProviderSettings: SparqlDataProviderSettings): string {
@@ -397,8 +373,7 @@ export function filter(params: FilterParams): SparqlResponse<ElementBinding> {
 function getAllRelatedByLinkTypeElements(
     refElementId: string, refElementLinkId: string, linkDirection: string,
 ): ElementBinding[] {
-    const blankElements = (decodeId(refElementId) || [])
-        .concat(decodeId(refElementLinkId) || []);
+    const blankElements = (decodeId(refElementId) || []).concat(decodeId(refElementLinkId) || []);
     let bindings: ElementBinding[] = [];
     if (blankElements.length > 0) {
         for (const be of blankElements) {
@@ -478,7 +453,7 @@ function getElementBindings(ids: string[]): ElementBinding[] {
         }
     }
     return blankElements.filter(be => {
-        return ids.indexOf(be.inst.value) !== -1;
+        return ids.includes(be.inst.value);
     });
 }
 
@@ -493,11 +468,11 @@ function getLinkBinding(ids: string[]): LinkBinding[] {
 
     const bindings: LinkBinding[] = [];
     for (const be of blankElements) {
-        if (ids.indexOf(be.inst.value) !== -1) {
+        if (ids.includes(be.inst.value)) {
             if (
                 (isRdfIri(be.blankSrc) || isRdfBlank(be.blankSrc)) &&
                 isRdfIri(be.blankSrcProp) &&
-                ids.indexOf(be.blankSrc.value) !== -1
+                ids.includes(be.blankSrc.value)
             ) {
                 bindings.push({
                     source: be.blankSrc,
@@ -508,7 +483,7 @@ function getLinkBinding(ids: string[]): LinkBinding[] {
             if (
                 (isRdfIri(be.blankTrg) || isRdfBlank(be.blankTrg)) &&
                 isRdfIri(be.blankTrgProp) &&
-                ids.indexOf(be.blankTrg.value) !== -1
+                ids.includes(be.blankTrg.value)
             ) {
                 bindings.push({
                     source: be.inst,

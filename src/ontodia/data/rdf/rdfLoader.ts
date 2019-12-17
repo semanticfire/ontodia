@@ -29,31 +29,30 @@ export class RDFLoader {
         let typePointer = 0;
         const mimeTypes = Object.keys(this.parser.parserMap);
 
-        const recursivePart = (): Promise<Dataset> => {
+        const recursivePart = async (): Promise<Dataset> => {
             const acceptType = mimeTypes[typePointer++];
 
             if (acceptType && (elementId.startsWith('http') || elementId.startsWith('file'))) {
-                return fetchFile({
+                const body = await fetchFile({
                     url: elementId,
                     proxy: this.proxy,
                     headers: {
                         'Accept': acceptType,
                     },
-                }).then((body: string) => {
-                    return this.parseData(body, acceptType, elementId)
-                    .catch(error => {
-                        // tslint:disable-next-line:no-console
-                        console.warn(error);
-                        if (typePointer < mimeTypes.length) {
-                            return recursivePart();
-                        } else {
-                            throw new Error(`Unable to parse response. Response: ${body}`);
-                        }
-                    });
                 });
-            } else {
-                throw new Error(`Unable to fetch data using this id (${elementId})`);
+                try {
+                    const data = this.parseData(body, acceptType, elementId);
+                    return data;
+                } catch (error) {
+                    // tslint:disable-next-line:no-console
+                    console.warn(error);
+                    if (typePointer < mimeTypes.length) {
+                        return recursivePart();
+                    }
+                    throw new Error(`Unable to parse response. Response: ${body}`);
+                }
             }
+            throw new Error(`Unable to fetch data using this id (${elementId})`);
         };
 
         if (!this.fetchingFileCatche[fileUrl]) {
@@ -63,29 +62,24 @@ export class RDFLoader {
     }
 }
 
-function fetchFile(params: {
+async function fetchFile(params: {
     url: string;
     proxy: string;
     headers?: any;
 }) {
-    return fetch(
-        params.proxy + params.url,
-        {
-            method: 'GET',
-            credentials: 'same-origin',
-            mode: 'cors',
-            cache: 'default',
-            headers: params.headers || {
-                'Accept': 'application/rdf+xml',
-            },
+    const response = await fetch(params.proxy + params.url, {
+        method: 'GET',
+        credentials: 'same-origin',
+        mode: 'cors',
+        cache: 'default',
+        headers: params.headers || {
+            'Accept': 'application/rdf+xml',
         },
-    ).then(response => {
-        if (response.ok) {
-            return response.text();
-        } else {
-            const error = new Error(response.statusText);
-            (error as any).response = response;
-            throw error;
-        }
     });
+    if (response.ok) {
+        return response.text();
+    }
+    const error = new Error(response.statusText);
+    (error as any).response = response;
+    throw error;
 }

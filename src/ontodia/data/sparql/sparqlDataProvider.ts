@@ -1,4 +1,3 @@
-import * as N3 from 'n3';
 import { DataProvider, LinkElementsParams, FilterParams } from '../provider';
 import {
     Dictionary, ClassModel, LinkType, ElementModel, LinkModel, LinkCount, PropertyModel,

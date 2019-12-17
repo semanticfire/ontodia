@@ -1,15 +1,13 @@
 import * as React from 'react';
 
-import { Dictionary, ElementModel, ElementIri } from '../data/model';
 import { Paper, PaperTransform } from './paper';
 import { PaperAreaContextTypes, PaperAreaContextWrapper } from './paperArea';
 import { Element, Cell } from './elements';
-import { ElementLayer, ElementContextWrapper, ElementContextTypes } from './elementLayer';
+import { ElementContextWrapper, ElementContextTypes } from './elementLayer';
 import { EventObserver } from '../viewUtils/events';
 
 import { Vector, Rect } from './geometry';
 import { getContentFittingBox } from './paperArea';
-import { DiagramView } from './view';
 
 export interface State {
     paperWidth?: number;
@@ -51,7 +49,9 @@ export class EmbeddedLayer extends React.Component<{}, State> {
         });
 
         this.listener.listen(element.events, 'changePosition', () => {
-            if (this.isNestedElementMoving) { return; }
+            if (this.isNestedElementMoving) {
+                return;
+            }
 
             const {offsetX, offsetY} = this.getOffset();
             const {x, y} = this.getContentFittingBox();
@@ -224,7 +224,6 @@ function findParentElement(layer: HTMLElement): HTMLElement {
         throw new Error('Cannot find parent diagram element for EmbeddedLayer');
     } else if (parent.hasAttribute('data-element-id')) {
         return parent;
-    } else {
-        return findParentElement(parent);
     }
+    return findParentElement(parent);
 }
