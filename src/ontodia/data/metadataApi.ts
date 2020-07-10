@@ -16,9 +16,7 @@ export interface MetadataApi {
     /**
      * Links of which types can we create between elements?
      */
-    possibleLinkTypes(
-        source: ElementModel, target: ElementModel, ct: CancellationToken
-    ): Promise<Array<{ linkTypeIri: LinkTypeIri; direction: LinkDirection }>>;
+    possibleLinkTypes(source: ElementModel, target: ElementModel, ct: CancellationToken): Promise<DirectedLinkType[]>;
 
     /**
      * If new element is created by dragging link from existing element, this should return available element types.
@@ -44,5 +42,10 @@ export interface MetadataApi {
 
     canEditLink(link: LinkModel, source: ElementModel, target: ElementModel, ct: CancellationToken): Promise<boolean>;
 
-    generateNewElementIri(types: ReadonlyArray<ElementTypeIri>, ct: CancellationToken): Promise<ElementIri>;
+    generateNewElement(types: ReadonlyArray<ElementTypeIri>, ct: CancellationToken): Promise<ElementModel>;
+}
+
+export interface DirectedLinkType {
+    readonly linkTypeIri: LinkTypeIri;
+    readonly direction: LinkDirection;
 }

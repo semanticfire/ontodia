@@ -2,7 +2,7 @@ import { ElementIri, LinkModel, hashLink, sameLink } from '../data/model';
 import { ValidationApi, ValidationEvent, ElementError, LinkError } from '../data/validationApi';
 import { CancellationToken } from '../viewUtils/async';
 import { HashMap, ReadonlyHashMap, cloneMap } from '../viewUtils/collections';
-import { AuthoringState, AuthoringKind } from './authoringState';
+import { AuthoringState } from './authoringState';
 import { EditorController } from './editorController';
 
 export interface ValidationState {
@@ -64,26 +64,26 @@ export function changedElementsToValidate(
     const currentAuthoring = editor.authoringState;
 
     const links = new HashMap<LinkModel, true>(hashLink, sameLink);
-    previousAuthoring.index.links.forEach((e, model) => links.set(model, true));
-    currentAuthoring.index.links.forEach((e, model) => links.set(model, true));
+    previousAuthoring.links.forEach((e, model) => links.set(model, true));
+    currentAuthoring.links.forEach((e, model) => links.set(model, true));
 
     const toValidate = new Set<ElementIri>();
     links.forEach((value, linkModel) => {
-        const current = currentAuthoring.index.links.get(linkModel);
-        const previous = previousAuthoring.index.links.get(linkModel);
+        const current = currentAuthoring.links.get(linkModel);
+        const previous = previousAuthoring.links.get(linkModel);
         if (current !== previous) {
             toValidate.add(linkModel.sourceId);
         }
     });
 
     for (const element of editor.model.elements) {
-        const current = currentAuthoring.index.elements.get(element.iri);
-        const previous = previousAuthoring.index.elements.get(element.iri);
+        const current = currentAuthoring.elements.get(element.iri);
+        const previous = previousAuthoring.elements.get(element.iri);
         if (current !== previous) {
             toValidate.add(element.iri);
 
             // when we remove element incoming link are removed as well so we should update their sources
-            if ((current || previous).type === AuthoringKind.DeleteElement) {
+            if ((current || previous).deleted) {
                 for (const link of element.links) {
                     if (link.data.sourceId !== element.iri) {
                         toValidate.add(link.data.sourceId);
@@ -100,7 +100,7 @@ export function validateElements(
     targets: ReadonlySet<ElementIri>,
     validationApi: ValidationApi,
     editor: EditorController,
-    cancellation: CancellationToken,
+    cancellationToken: CancellationToken
 ) {
     const previousState = editor.validationState;
     const newState = ValidationState.createMutable();
@@ -123,9 +123,12 @@ export function validateElements(
                 outboundLinks,
                 state: editor.authoringState,
                 model: editor.model,
-                cancellation,
+                cancellation: cancellationToken,
             };
-            const result = validationApi.validate(event);
+            const result = CancellationToken.mapCancelledToNull(
+                cancellationToken,
+                validationApi.validate(event)
+            );
 
             const loadingElement: ElementValidation = {loading: true, errors: []};
             const loadingLink: LinkValidation = {loading: true, errors: []};
@@ -146,15 +149,19 @@ export function validateElements(
 }
 
 async function processValidationResult(
-    result: Promise<Array<ElementError | LinkError>>,
+    result: Promise<Array<ElementError | LinkError> | null>,
     previousElement: ElementValidation,
     previousLink: LinkValidation,
     e: ValidationEvent,
     editor: EditorController,
 ) {
-    let allErrors: Array<ElementError | LinkError>;
+    let allErrors: Array<ElementError | LinkError> | null;
     try {
         allErrors = await result;
+        if (allErrors === null) {
+            // validation was cancelled
+            return;
+        }
     } catch (err) {
         // tslint:disable-next-line:no-console
         console.error(`Failed to validate element`, e.target, err);

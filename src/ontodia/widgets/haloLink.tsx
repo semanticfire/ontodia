@@ -8,10 +8,10 @@ import { PaperWidgetProps } from '../diagram/paperArea';
 import { DiagramView } from '../diagram/view';
 
 import { EditorController } from '../editor/editorController';
-import { AuthoringState, AuthoringKind } from '../editor/authoringState';
+import { AuthoringState } from '../editor/authoringState';
 
-import { EventObserver, Unsubscribe } from '../viewUtils/events';
-import { Cancellation, Debouncer } from '../viewUtils/async';
+import { EventObserver } from '../viewUtils/events';
+import { Cancellation, CancellationToken, Debouncer } from '../viewUtils/async';
 import { HtmlSpinner } from '../viewUtils/spinner';
 
 const CLASS_NAME = 'ontodia-halo-link';
@@ -25,7 +25,6 @@ export interface Props extends PaperWidgetProps {
     target: Link;
     onEdit: () => void;
     onDelete: () => void;
-    onRevert: () => void;
     onSourceMove: (point: { x: number; y: number }) => void;
     onTargetMove: (point: { x: number; y: number }) => void;
     onEditLabel: () => void;
@@ -94,8 +93,11 @@ export class HaloLink extends React.Component<Props, State> {
             const source = view.model.getElement(link.sourceId);
             const target = view.model.getElement(link.targetId);
             const signal = this.queryCancellation.signal;
-            metadataApi.canDeleteLink(link.data, source.data, target.data, signal).then(canDelete => {
-                if (signal.aborted) { return; }
+            CancellationToken.mapCancelledToNull(
+                signal,
+                metadataApi.canDeleteLink(link.data, source.data, target.data, signal)
+            ).then(canDelete => {
+                if (canDelete === null) { return; }
                 if (this.props.target.id === link.id) {
                     this.setState({canDelete});
                 }
@@ -116,8 +118,11 @@ export class HaloLink extends React.Component<Props, State> {
             const source = view.model.getElement(link.sourceId);
             const target = view.model.getElement(link.targetId);
             const signal = this.queryCancellation.signal;
-            metadataApi.canEditLink(link.data, source.data, target.data, signal).then(canEdit => {
-                if (signal.aborted) { return; }
+            CancellationToken.mapCancelledToNull(
+                signal,
+                metadataApi.canEditLink(link.data, source.data, target.data, signal)
+            ).then(canEdit => {
+                if (canEdit === null) { return; }
                 if (this.props.target.id === link.id) {
                     this.setState({canEdit});
                 }
@@ -291,7 +296,7 @@ export class HaloLink extends React.Component<Props, State> {
         if (!polyline) { return null; }
 
         const isAuthoringMode = Boolean(metadataApi);
-        const deleteOrRevertButton = (
+        const deleteButton = (
             isDeletedByItself(editor.authoringState, target) ||
             isSourceOrTargetDeleted(editor.authoringState, target) ? null : this.renderDeleteButton(polyline)
         );
@@ -302,7 +307,7 @@ export class HaloLink extends React.Component<Props, State> {
                 {isAuthoringMode ? this.renderSourceButton(polyline) : null}
                 {!isAuthoringMode || isDeletedLink(editor.authoringState, target)
                     ? null : this.renderEditButton(polyline)}
-                {isAuthoringMode ? deleteOrRevertButton : null}
+                {isAuthoringMode ? deleteButton : null}
                 {this.renderEditLabelButton()}
             </div>
         );
@@ -314,15 +319,15 @@ function isDeletedLink(state: AuthoringState, link: Link) {
 }
 
 function isDeletedByItself(state: AuthoringState, link: Link) {
-    const event = state.index.links.get(link.data);
-    return event && event.type === AuthoringKind.DeleteLink;
+    const event = state.links.get(link.data);
+    return event && event.deleted;
 }
 
 function isSourceOrTargetDeleted(state: AuthoringState, link: Link) {
-    const sourceEvent = state.index.elements.get(link.data.sourceId);
-    const targetEvent = state.index.elements.get(link.data.targetId);
+    const sourceEvent = state.elements.get(link.data.sourceId);
+    const targetEvent = state.elements.get(link.data.targetId);
     return (
-        (sourceEvent && sourceEvent.type === AuthoringKind.DeleteElement) ||
-        (targetEvent && targetEvent.type === AuthoringKind.DeleteElement)
+        sourceEvent && sourceEvent.deleted ||
+        targetEvent && targetEvent.deleted
     );
 }

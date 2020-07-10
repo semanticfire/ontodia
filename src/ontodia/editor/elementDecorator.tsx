@@ -1,6 +1,5 @@
 import * as React from 'react';
 
-import { Debouncer } from '../viewUtils/async';
 import { EventObserver } from '../viewUtils/events';
 import { HtmlSpinner } from '../viewUtils/spinner';
 
@@ -9,7 +8,7 @@ import { DiagramView } from '../diagram/view';
 import { Vector } from '../diagram/geometry';
 
 import { EditorController } from './editorController';
-import { AuthoringKind, ElementChange, ElementDeletion } from './authoringState';
+import { ElementChange } from './authoringState';
 import { ElementValidation, LinkValidation } from './validation';
 
 const CLASS_NAME = `ontodia-authoring-state`;
@@ -22,20 +21,19 @@ export interface ElementDecoratorProps {
 }
 
 interface State {
-    state?: ElementChange | ElementDeletion;
+    state?: ElementChange;
     validation?: ElementValidation;
     isTemporary?: boolean;
 }
 
 export class ElementDecorator extends React.Component<ElementDecoratorProps, State> {
     private readonly listener = new EventObserver();
-    private readonly delayedUpdate = new Debouncer();
 
     constructor(props: ElementDecoratorProps) {
         super(props);
         const {model, editor} = props;
         this.state = {
-            state: editor.authoringState.index.elements.get(model.iri),
+            state: editor.authoringState.elements.get(model.iri),
             validation: editor.validationState.elements.get(model.iri),
             isTemporary: editor.temporaryState.elements.has(model.iri),
         };
@@ -46,20 +44,34 @@ export class ElementDecorator extends React.Component<ElementDecoratorProps, Sta
         this.listener.listen(model.events, 'changeSize', () =>
             this.forceUpdate()
         );
-        this.listener.listen(editor.events, 'changeAuthoringState', () =>
-            this.setState({state: editor.authoringState.index.elements.get(model.iri)})
-        );
-        this.listener.listen(editor.events, 'changeValidationState', () =>
-            this.setState({validation: editor.validationState.elements.get(model.iri)})
-        );
-        this.listener.listen(editor.events, 'changeTemporaryState', () =>
-            this.setState({isTemporary: editor.temporaryState.elements.has(model.iri)})
-        );
+        this.listener.listen(editor.events, 'changeAuthoringState', e => {
+            const state = editor.authoringState.elements.get(model.iri);
+            if (state === e.previous.elements.get(model.iri)) { return; }
+            this.setState({state});
+        });
+        this.listener.listen(editor.events, 'changeValidationState', e => {
+            const validation = editor.validationState.elements.get(model.iri);
+            if (validation === e.previous.elements.get(model.iri)) { return; }
+            this.setState({validation});
+        });
+        this.listener.listen(editor.events, 'changeTemporaryState', e => {
+            const isTemporary = editor.temporaryState.elements.has(model.iri);
+            if (isTemporary === e.previous.elements.has(model.iri)) { return; }
+            this.setState({isTemporary});
+        });
+        this.listener.listen(model.events, 'changeData', e => {
+            if (e.previous.id !== model.iri) {
+                this.setState({
+                    isTemporary: editor.temporaryState.elements.has(model.iri),
+                    validation: editor.validationState.elements.get(model.iri),
+                    state: editor.authoringState.elements.get(model.iri),
+                });
+            }
+        });
     }
 
     componentWillUnmount() {
         this.listener.stopListening();
-        this.delayedUpdate.dispose();
     }
 
     shouldComponentUpdate(nextProps: ElementDecoratorProps, nextState: State) {
@@ -83,7 +95,7 @@ export class ElementDecorator extends React.Component<ElementDecoratorProps, Sta
                     fill='url(#stripe-pattern)' />
             ];
         }
-        if (state && state.type === AuthoringKind.DeleteElement) {
+        if (state && state.deleted) {
             const right = width;
             const bottom = height;
             return (
@@ -136,15 +148,15 @@ export class ElementDecorator extends React.Component<ElementDecoratorProps, Sta
             let statusText: string;
             let title: string;
 
-            if (state.type === AuthoringKind.ChangeElement && !state.before) {
-                statusText = 'New';
-                title = 'Revert creation of the element';
-            } else if (state.type === AuthoringKind.ChangeElement && state.before) {
-                statusText = 'Change';
-                title = 'Revert all changes in properties of the element';
-            } else if (state.type === AuthoringKind.DeleteElement) {
+            if (state.deleted) {
                 statusText = 'Delete';
                 title = 'Revert deletion of the element';
+            } else if (!state.before) {
+                statusText = 'New';
+                title = 'Revert creation of the element';
+            } else {
+                statusText = 'Change';
+                title = 'Revert all changes in properties of the element';
             }
 
             if (statusText && title) {
